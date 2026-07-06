@@ -29,7 +29,11 @@
   .viz-root{max-width:1240px;margin:0 auto;padding:20px 20px 40px;}
   header.top h1{font-size:22px;margin:0 0 4px;letter-spacing:.01em;}
   header.top p{margin:0;color:var(--text-secondary);font-size:14px;line-height:1.6;}
-  .layout{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-top:18px;}
+  .view-tabs{display:flex;gap:8px;margin:18px 0 0;flex-wrap:wrap;}
+  .view-tabs button{border:1px solid var(--border);background:var(--surface-1);color:var(--text-secondary);
+    padding:9px 18px;border-radius:10px;cursor:pointer;font-size:13.5px;font-weight:700;font-family:inherit;}
+  .view-tabs button.active{background:var(--text-primary);color:var(--surface-1);border-color:var(--text-primary);}
+  .layout{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-top:14px;}
   @media (max-width:880px){.layout{grid-template-columns:1fr;}}
   .card{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--card-radius);
     padding:16px;position:relative;}
@@ -39,12 +43,17 @@
     padding:7px 14px;border-radius:999px;cursor:pointer;font-weight:600;font-family:inherit;transition:background .15s,color .15s;}
   .seg button.active{background:var(--surface-1);color:var(--text-primary);box-shadow:0 1px 2px var(--border);}
   .toolbar-hint{font-size:12px;color:var(--text-muted);margin-left:auto;}
-  #mapSvg{width:100%;height:auto;display:block;}
+  svg.map-svg{width:100%;height:auto;display:block;}
   .ward-shape{fill:var(--ward-fill);stroke:var(--ward-stroke);stroke-width:1;cursor:pointer;transition:fill .15s;}
   .ward-shape:hover{fill:var(--baseline);}
   .ward-shape.shinjuku{fill:var(--shinjuku-fill);stroke:var(--shinjuku-stroke);cursor:default;}
   .ward-label{font-size:10.5px;fill:var(--text-secondary);text-anchor:middle;pointer-events:none;font-weight:600;}
   .ward-label.shinjuku-label{fill:#fff;font-size:12px;}
+  .pref-shape{fill:var(--ward-fill);stroke:var(--ward-stroke);stroke-width:1;opacity:.45;pointer-events:none;}
+  .node-dot{cursor:pointer;stroke:var(--surface-1);stroke-width:1;}
+  .node-dot.city{fill:var(--flow-in);}
+  .node-dot.other{fill:var(--text-muted);}
+  .node-dot.nodata{fill:var(--ward-fill);stroke:var(--text-muted);stroke-width:1.3;stroke-dasharray:2,1.6;}
   .flow-arc{fill:none;pointer-events:none;}
   .flow-arc.out{stroke:var(--flow-out);}
   .flow-arc.in{stroke:var(--flow-in);}
@@ -55,11 +64,11 @@
   .legend .sw{display:inline-flex;align-items:center;gap:6px;}
   .legend .dot{width:10px;height:10px;border-radius:3px;display:inline-block;}
   .legend .line{width:22px;height:0;border-top-width:3px;border-top-style:solid;display:inline-block;}
-  #tooltip{position:absolute;pointer-events:none;background:var(--text-primary);color:var(--surface-1);
+  .tooltip{position:absolute;pointer-events:none;background:var(--text-primary);color:var(--surface-1);
     font-size:12px;padding:8px 10px;border-radius:8px;line-height:1.5;opacity:0;transition:opacity .1s;
     max-width:220px;z-index:20;box-shadow:0 4px 14px rgba(0,0,0,.25);}
-  #tooltip.show{opacity:1;}
-  #tooltip b{font-size:13px;}
+  .tooltip.show{opacity:1;}
+  .tooltip b{font-size:13px;}
   .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
   .kpi{background:var(--ward-fill);border-radius:10px;padding:10px 12px;}
   .kpi .kpi-label{font-size:11.5px;color:var(--text-secondary);margin-bottom:4px;}
@@ -67,7 +76,7 @@
   .kpi .kpi-unit{font-size:12px;font-weight:500;color:var(--text-secondary);margin-left:2px;}
   .side-panel h3{font-size:14px;margin:18px 0 8px;color:var(--text-primary);}
   .side-panel h3:first-child{margin-top:0;}
-  .rank-row{display:grid;grid-template-columns:20px 64px 1fr auto;align-items:center;gap:8px;
+  .rank-row{display:grid;grid-template-columns:20px 92px 1fr auto;align-items:center;gap:8px;
     font-size:12.5px;padding:4px 0;cursor:pointer;border-radius:6px;}
   .rank-row:hover{background:var(--ward-fill);}
   .rank-row .idx{color:var(--text-muted);text-align:right;}
@@ -90,22 +99,27 @@
 <div class="viz-root">
   <header class="top">
     <h1>新宿区 人流データダッシュボード（通勤・通学ベース）</h1>
-    <p>総務省統計局「2020年国勢調査 従業地・通学地集計」をもとに、新宿区と東京23区の間の人の流れ（15歳以上・通勤通学者）を可視化しています。矢印のアニメーションは新宿区から見た「流出（区外へ）」「流入（区内へ）」の方向を示します。</p>
+    <p>総務省統計局「2020年国勢調査 従業地・通学地集計」をもとに、新宿区と周辺自治体の間の人の流れ（15歳以上・通勤通学者）を可視化しています。矢印のアニメーションは新宿区から見た「流出（区外へ）」「流入（区内へ）」の方向を示します。</p>
   </header>
 
-  <div class="layout">
-    <div class="card map-card">
+  <div class="view-tabs" id="viewTabs">
+    <button data-view="detail" class="active">新宿区 ⇔ 東京23区（詳細）</button>
+    <button data-view="wide">新宿区 ⇔ 関東周辺（広域）</button>
+  </div>
+
+  <div class="layout" id="detailView">
+    <div class="card map-card" id="detailMapCard">
       <div class="map-toolbar">
-        <div class="seg" id="modeSeg">
+        <div class="seg" id="modeSegDetail">
           <button data-mode="both" class="active">両方</button>
           <button data-mode="in">流入（新宿区へ）</button>
           <button data-mode="out">流出（新宿区から）</button>
         </div>
         <span class="toolbar-hint">区をクリックすると詳細を表示</span>
       </div>
-      <svg id="mapSvg" viewBox="0 0 760 700"></svg>
-      <div class="legend" id="legend"></div>
-      <div id="tooltip"></div>
+      <svg class="map-svg" id="mapSvgDetail" viewBox="0 0 760 700"></svg>
+      <div class="legend" id="legendDetail"></div>
+      <div class="tooltip" id="tooltipDetail"></div>
     </div>
 
     <aside class="side-panel card">
@@ -117,11 +131,11 @@
         <div class="kpi"><div class="kpi-label">昼夜間人口比率</div><div class="kpi-value">227.1</div></div>
       </div>
 
-      <h3 id="rankTitle">区別ランキング</h3>
-      <ol id="rankingList" style="list-style:none;margin:0;padding:0;"></ol>
+      <h3 id="rankTitleDetail">区別ランキング</h3>
+      <ol id="rankingListDetail" style="list-style:none;margin:0;padding:0;"></ol>
 
       <h3>詳細</h3>
-      <div class="detail-box" id="detailPanel"></div>
+      <div class="detail-box" id="detailPanelDetail"></div>
 
       <div class="outside-note">
         23区以外の内訳（2020年・参考）：都内市町村からの流入 87,337人／流出 3,317人。他県からの流入 211,277人（埼玉県 82,242人・神奈川県 74,044人・千葉県 44,569人が中心）／流出 6,230人。新宿区は都心3区（千代田・中央・港）に対しては流出超過、それ以外の区市町村・県に対しては流入超過となっています。
@@ -129,10 +143,46 @@
     </aside>
   </div>
 
+  <div class="layout" id="wideView" style="display:none;">
+    <div class="card map-card" id="wideMapCard">
+      <div class="map-toolbar">
+        <div class="seg" id="modeSegWide">
+          <button data-mode="both" class="active">両方</button>
+          <button data-mode="in">流入（新宿区へ）</button>
+          <button data-mode="out">流出（新宿区から）</button>
+        </div>
+        <span class="toolbar-hint">区・市・県マーカーをクリックすると詳細を表示</span>
+      </div>
+      <svg class="map-svg" id="mapSvgWide" viewBox="0 0 900 780"></svg>
+      <div class="legend" id="legendWide"></div>
+      <div class="tooltip" id="tooltipWide"></div>
+    </div>
+
+    <aside class="side-panel card">
+      <h3>新宿区 概況（2020年）</h3>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-label">区への流入人口</div><div class="kpi-value">51.4<span class="kpi-unit">万人</span></div></div>
+        <div class="kpi"><div class="kpi-label">区からの流出人口</div><div class="kpi-value">7.3<span class="kpi-unit">万人</span></div></div>
+        <div class="kpi"><div class="kpi-label">埼玉・千葉・神奈川からの流入</div><div class="kpi-value">20.1<span class="kpi-unit">万人</span></div></div>
+        <div class="kpi"><div class="kpi-label">都内市町村からの流入</div><div class="kpi-value">8.7<span class="kpi-unit">万人</span></div></div>
+      </div>
+
+      <h3 id="rankTitleWide">市区町村ランキング</h3>
+      <ol id="rankingListWide" style="list-style:none;margin:0;padding:0;"></ol>
+
+      <h3>詳細</h3>
+      <div class="detail-box" id="detailPanelWide"></div>
+
+      <div class="outside-note">
+        群馬県・山梨県・静岡県は、新宿区公表資料では「その他44道府県 合計（流入10,422人／流出630人）」に一括りにされており、個別の県ごとの数値は入手できません（点線マーカー・クリックで詳細を表示）。通勤・通学圏としてこれらの県からの人数はごく僅少とみられます。
+      </div>
+    </aside>
+  </div>
+
   <footer>
-    <div>出典：総務省統計局「2020（令和2）年国勢調査 従業地・通学地による人口・就業状態等集計」、新宿区新宿自治創造研究所「2020（令和2）年国勢調査 従業地・通学地集計結果－新宿区の概要－」（2022年9月）を基に作成。</div>
+    <div>出典：総務省統計局「2020（令和2）年国勢調査 従業地・通学地による人口・就業状態等集計」、新宿区新宿自治創造研究所「2020（令和2）年国勢調査 従業地・通学地集計結果－新宿区の概要－」（2022年9月）を基に作成。広域ビューの市区町村別数値・県別内訳も同資料による。</div>
     <div>行政区域データ：国土交通省「国土数値情報（行政区域データ）」を『歴史的行政区域データセットβ版』（人文学オープンデータ共同利用センター）がGeoJSON化したものを使用（CC BY 4.0）。</div>
-    <div>※本データは通勤・通学者の移動を集計した国勢調査に基づく人の流れであり、観光客そのものの移動データではありません。観光施策への応用にあたっては、昼間人口の多さや近隣区との結びつきの強さを示す参考指標としてご活用ください。</div>
+    <div>※本データは通勤・通学者の移動を集計した国勢調査に基づく人の流れであり、観光客そのものの移動データではありません。観光施策への応用にあたっては、昼間人口の多さや近隣自治体との結びつきの強さを示す参考指標としてご活用ください。</div>
   </footer>
 </div>
 
@@ -141,75 +191,36 @@ const WARDS = {"type":"FeatureCollection","features":[{"type":"Feature","propert
 const CENTROIDS = {"13101": {"lat": 35.68758, "lon": 139.75492, "name": "千代田区"}, "13102": {"lat": 35.67075, "lon": 139.7767, "name": "中央区"}, "13103": {"lat": 35.65163, "lon": 139.73916, "name": "港区"}, "13104": {"lat": 35.70101, "lon": 139.70898, "name": "新宿区"}, "13105": {"lat": 35.71742, "lon": 139.74717, "name": "文京区"}, "13106": {"lat": 35.71548, "lon": 139.78589, "name": "台東区"}, "13107": {"lat": 35.71227, "lon": 139.81555, "name": "墨田区"}, "13108": {"lat": 35.65598, "lon": 139.8144, "name": "江東区"}, "13109": {"lat": 35.60979, "lon": 139.73304, "name": "品川区"}, "13110": {"lat": 35.63005, "lon": 139.68825, "name": "目黒区"}, "13111": {"lat": 35.56848, "lon": 139.73327, "name": "大田区"}, "13112": {"lat": 35.63971, "lon": 139.6351, "name": "世田谷区"}, "13113": {"lat": 35.66786, "lon": 139.69633, "name": "渋谷区"}, "13114": {"lat": 35.71092, "lon": 139.66252, "name": "中野区"}, "13115": {"lat": 35.69682, "lon": 139.62546, "name": "杉並区"}, "13116": {"lat": 35.7315, "lon": 139.71163, "name": "豊島区"}, "13117": {"lat": 35.76587, "lon": 139.72894, "name": "北区"}, "13118": {"lat": 35.73994, "lon": 139.7812, "name": "荒川区"}, "13119": {"lat": 35.7726, "lon": 139.67648, "name": "板橋区"}, "13120": {"lat": 35.74784, "lon": 139.61766, "name": "練馬区"}, "13121": {"lat": 35.77882, "lon": 139.79511, "name": "足立区"}, "13122": {"lat": 35.75321, "lon": 139.85566, "name": "葛飾区"}, "13123": {"lat": 35.69245, "lon": 139.87572, "name": "江戸川区"}};
 const FLOW = {"13101": {"out": 15174, "in": 1462}, "13102": {"out": 6397, "in": 2744}, "13103": {"out": 9891, "in": 3242}, "13105": {"out": 3378, "in": 6719}, "13106": {"out": 1258, "in": 3104}, "13107": {"out": 685, "in": 4421}, "13108": {"out": 2466, "in": 9114}, "13109": {"out": 2198, "in": 6563}, "13110": {"out": 937, "in": 5158}, "13111": {"out": 1045, "in": 8565}, "13112": {"out": 1540, "in": 22784}, "13113": {"out": 5509, "in": 7527}, "13114": {"out": 2715, "in": 20289}, "13115": {"out": 1482, "in": 25034}, "13116": {"out": 3191, "in": 10402}, "13117": {"out": 656, "in": 8187}, "13118": {"out": 284, "in": 3684}, "13119": {"out": 971, "in": 13641}, "13120": {"out": 1057, "in": 28241}, "13121": {"out": 364, "in": 7878}, "13122": {"out": 256, "in": 5824}, "13123": {"out": 488, "in": 11168}};
 const DAYNIGHT = {"13101": {"day": 903780, "night": 66680, "ratio": 1355.4}, "13102": {"day": 633390, "night": 169179, "ratio": 374.4}, "13103": {"day": 972673, "night": 260486, "ratio": 373.4}, "13104": {"day": 793528, "night": 349385, "ratio": 227.1}, "13105": {"day": 353648, "night": 240069, "ratio": 147.3}, "13106": {"day": 307176, "night": 211444, "ratio": 145.3}, "13107": {"day": 281971, "night": 272085, "ratio": 103.6}, "13108": {"day": 633813, "night": 524310, "ratio": 120.9}, "13109": {"day": 582156, "night": 422488, "ratio": 137.8}, "13110": {"day": 301801, "night": 288088, "ratio": 104.8}, "13111": {"day": 722027, "night": 748081, "ratio": 96.5}, "13112": {"day": 854838, "night": 943664, "ratio": 90.6}, "13113": {"day": 551344, "night": 243883, "ratio": 226.1}, "13114": {"day": 325767, "night": 344880, "ratio": 94.5}, "13115": {"day": 498067, "night": 591108, "ratio": 84.3}, "13116": {"day": 412070, "night": 301599, "ratio": 136.6}, "13117": {"day": 332018, "night": 355213, "ratio": 93.5}, "13118": {"day": 193640, "night": 217475, "ratio": 89.0}, "13119": {"day": 523358, "night": 584483, "ratio": 89.5}, "13120": {"day": 601359, "night": 752608, "ratio": 79.9}, "13121": {"day": 619375, "night": 695043, "ratio": 89.1}, "13122": {"day": 376832, "night": 453093, "ratio": 83.2}, "13123": {"day": 571717, "night": 697932, "ratio": 81.9}};
+const PREFS = {"type":"FeatureCollection","features":[{"type":"Feature","properties":{"name":"群馬県"},"geometry":{"type":"Polygon","coordinates":[[[139.13,36.283],[139.169,36.275],[139.171,36.274],[139.244,36.245],[139.273,36.249],[139.328,36.24],[139.358,36.253],[139.383,36.238],[139.417,36.218],[139.444,36.197],[139.493,36.192],[139.496,36.193],[139.535,36.193],[139.588,36.21],[139.61,36.197],[139.619,36.19],[139.664,36.207],[139.659,36.231],[139.617,36.274],[139.59,36.269],[139.561,36.267],[139.536,36.282],[139.5,36.276],[139.464,36.272],[139.444,36.288],[139.416,36.316],[139.423,36.332],[139.37,36.366],[139.361,36.384],[139.407,36.446],[139.436,36.466],[139.418,36.495],[139.451,36.55],[139.483,36.578],[139.465,36.606],[139.427,36.601],[139.412,36.608],[139.352,36.615],[139.328,36.633],[139.337,36.692],[139.356,36.707],[139.37,36.745],[139.353,36.774],[139.374,36.784],[139.378,36.804],[139.407,36.827],[139.353,36.849],[139.358,36.872],[139.393,36.911],[139.353,36.916],[139.342,36.928],[139.305,36.926],[139.268,36.939],[139.232,36.941],[139.18,36.965],[139.179,36.991],[139.132,37.026],[139.123,37.047],[139.097,37.059],[139.091,37.02],[139.03,36.984],[138.97,36.981],[138.964,36.953],[138.979,36.891],[138.932,36.894],[138.917,36.87],[138.929,36.833],[138.88,36.825],[138.829,36.795],[138.818,36.762],[138.789,36.745],[138.727,36.764],[138.713,36.739],[138.696,36.739],[138.642,36.724],[138.544,36.704],[138.52,36.692],[138.534,36.666],[138.525,36.651],[138.459,36.635],[138.442,36.611],[138.42,36.577],[138.429,36.556],[138.412,36.541],[138.397,36.491],[138.401,36.435],[138.457,36.42],[138.458,36.412],[138.489,36.401],[138.507,36.414],[138.52,36.407],[138.541,36.403],[138.571,36.42],[138.608,36.423],[138.644,36.411],[138.648,36.407],[138.653,36.303],[138.6,36.278],[138.612,36.229],[138.637,36.204],[138.637,36.175],[138.577,36.168],[138.601,36.136],[138.634,36.134],[138.645,36.12],[138.631,36.091],[138.644,36.05],[138.631,36.028],[138.689,35.992],[138.713,35.985],[138.744,36.01],[138.754,36.035],[138.791,36.029],[138.828,36.037],[138.829,36.041],[138.846,36.067],[138.898,36.091],[138.931,36.088],[138.957,36.106],[138.96,36.124],[138.976,36.117],[139.016,36.134],[139.042,36.128],[139.061,36.152],[139.056,36.181],[139.097,36.238],[139.108,36.261],[139.13,36.283]]]}},{"type":"Feature","properties":{"name":"埼玉県"},"geometry":{"type":"Polygon","coordinates":[[[139.328,36.24],[139.273,36.249],[139.244,36.245],[139.171,36.274],[139.169,36.275],[139.13,36.283],[139.108,36.261],[139.097,36.238],[139.056,36.181],[139.061,36.152],[139.042,36.128],[139.016,36.134],[138.976,36.117],[138.96,36.124],[138.957,36.106],[138.931,36.088],[138.898,36.091],[138.846,36.067],[138.829,36.041],[138.828,36.037],[138.791,36.029],[138.754,36.035],[138.744,36.01],[138.713,35.985],[138.711,35.971],[138.739,35.939],[138.729,35.909],[138.789,35.893],[138.814,35.862],[138.845,35.867],[138.863,35.859],[138.892,35.84],[138.911,35.853],[138.944,35.855],[138.954,35.874],[139.001,35.884],[139.024,35.897],[139.05,35.879],[139.1,35.867],[139.135,35.865],[139.164,35.851],[139.192,35.84],[139.282,35.84],[139.316,35.819],[139.33,35.794],[139.369,35.79],[139.381,35.774],[139.379,35.771],[139.392,35.763],[139.441,35.767],[139.497,35.779],[139.542,35.807],[139.543,35.78],[139.516,35.766],[139.545,35.755],[139.563,35.762],[139.594,35.779],[139.597,35.778],[139.625,35.78],[139.646,35.798],[139.697,35.799],[139.698,35.798],[139.738,35.78],[139.768,35.818],[139.792,35.805],[139.821,35.815],[139.847,35.797],[139.859,35.794],[139.894,35.783],[139.889,35.83],[139.899,35.867],[139.875,35.913],[139.849,35.938],[139.833,35.969],[139.814,35.997],[139.807,36.043],[139.79,36.062],[139.776,36.091],[139.766,36.08],[139.728,36.09],[139.727,36.108],[139.71,36.136],[139.703,36.145],[139.688,36.2],[139.664,36.207],[139.619,36.19],[139.61,36.197],[139.588,36.21],[139.535,36.193],[139.496,36.193],[139.493,36.192],[139.444,36.197],[139.417,36.218],[139.383,36.238],[139.358,36.253],[139.328,36.24]]]}},{"type":"Feature","properties":{"name":"千葉県"},"geometry":{"type":"MultiPolygon","coordinates":[[[[140.115,35.551],[140.092,35.554],[140.061,35.544],[140.012,35.485],[140.023,35.468],[140.007,35.479],[139.966,35.469],[139.949,35.442],[139.922,35.44],[139.897,35.423],[139.907,35.389],[139.888,35.361],[139.846,35.375],[139.852,35.349],[139.823,35.344],[139.812,35.306],[139.853,35.284],[139.864,35.254],[139.867,35.219],[139.824,35.198],[139.818,35.155],[139.839,35.129],[139.836,35.1],[139.822,35.072],[139.833,35.032],[139.858,35.011],[139.855,34.99],[139.829,34.991],[139.797,34.974],[139.753,34.965],[139.816,34.941],[139.825,34.911],[139.846,34.903],[139.908,34.907],[139.942,34.917],[139.961,34.938],[139.961,34.965],[139.98,35.01],[140.038,35.052],[140.075,35.058],[140.099,35.08],[140.105,35.102],[140.134,35.122],[140.152,35.117],[140.19,35.127],[140.212,35.114],[140.258,35.138],[140.286,35.134],[140.297,35.151],[140.325,35.14],[140.347,35.176],[140.385,35.192],[140.405,35.237],[140.4,35.269],[140.414,35.304],[140.398,35.331],[140.392,35.383],[140.397,35.419],[140.416,35.472],[140.43,35.498],[140.47,35.547],[140.526,35.602],[140.559,35.628],[140.625,35.673],[140.665,35.692],[140.715,35.7],[140.761,35.698],[140.831,35.714],[140.863,35.698],[140.866,35.741],[140.852,35.745],[140.815,35.742],[140.742,35.785],[140.721,35.813],[140.687,35.848],[140.648,35.856],[140.631,35.859],[140.599,35.903],[140.537,35.939],[140.511,35.959],[140.487,35.929],[140.458,35.927],[140.435,35.912],[140.379,35.903],[140.376,35.902],[140.323,35.866],[140.289,35.871],[140.244,35.855],[140.214,35.862],[140.168,35.845],[140.146,35.846],[140.127,35.871],[140.061,35.888],[140.031,35.901],[139.995,35.91],[139.952,35.936],[139.932,35.951],[139.934,35.968],[139.924,35.97],[139.884,35.989],[139.878,36.008],[139.82,36.057],[139.787,36.104],[139.776,36.091],[139.79,36.062],[139.807,36.043],[139.814,35.997],[139.833,35.969],[139.849,35.938],[139.875,35.913],[139.899,35.867],[139.889,35.83],[139.894,35.783],[139.879,35.768],[139.89,35.751],[139.89,35.75],[139.899,35.723],[139.916,35.708],[139.909,35.686],[139.886,35.671],[139.874,35.64],[139.898,35.617],[139.939,35.64],[139.918,35.655],[139.963,35.681],[140.002,35.666],[140.02,35.652],[140.084,35.597],[140.099,35.606],[140.111,35.59],[140.115,35.551]]],[[[139.959,35.673],[139.972,35.671],[139.963,35.681],[139.959,35.673]]]]}},{"type":"Feature","properties":{"name":"東京都"},"geometry":{"type":"MultiPolygon","coordinates":[[[[139.79,35.656],[139.841,35.643],[139.849,35.643],[139.874,35.64],[139.886,35.671],[139.909,35.686],[139.916,35.708],[139.899,35.723],[139.89,35.75],[139.89,35.751],[139.879,35.768],[139.894,35.783],[139.859,35.794],[139.847,35.797],[139.821,35.815],[139.792,35.805],[139.768,35.818],[139.738,35.78],[139.698,35.798],[139.697,35.799],[139.646,35.798],[139.625,35.78],[139.597,35.778],[139.594,35.779],[139.563,35.762],[139.545,35.755],[139.516,35.766],[139.543,35.78],[139.542,35.807],[139.497,35.779],[139.441,35.767],[139.392,35.763],[139.379,35.771],[139.381,35.774],[139.369,35.79],[139.33,35.794],[139.316,35.819],[139.282,35.84],[139.192,35.84],[139.164,35.851],[139.135,35.865],[139.1,35.867],[139.05,35.879],[139.024,35.897],[139.001,35.884],[138.954,35.874],[138.944,35.855],[138.962,35.83],[138.984,35.769],[139.012,35.739],[139.012,35.739],[139.023,35.722],[139.072,35.695],[139.106,35.691],[139.131,35.672],[139.162,35.668],[139.179,35.646],[139.216,35.646],[139.22,35.626],[139.252,35.602],[139.269,35.609],[139.361,35.599],[139.409,35.575],[139.418,35.562],[139.458,35.528],[139.456,35.52],[139.468,35.502],[139.485,35.504],[139.487,35.536],[139.47,35.57],[139.483,35.571],[139.507,35.576],[139.464,35.609],[139.449,35.612],[139.464,35.625],[139.495,35.617],[139.515,35.625],[139.525,35.643],[139.562,35.633],[139.59,35.618],[139.597,35.618],[139.643,35.598],[139.655,35.59],[139.681,35.561],[139.703,35.537],[139.726,35.543],[139.768,35.539],[139.809,35.539],[139.785,35.571],[139.759,35.564],[139.747,35.59],[139.75,35.625],[139.765,35.656],[139.79,35.656]]],[[[139.769,35.626],[139.773,35.62],[139.782,35.63],[139.769,35.626]]],[[[139.807,35.598],[139.806,35.596],[139.806,35.585],[139.821,35.606],[139.807,35.598]]],[[[139.361,34.799],[139.35,34.784],[139.359,34.702],[139.396,34.684],[139.439,34.679],[139.45,34.698],[139.443,34.748],[139.433,34.772],[139.412,34.787],[139.361,34.799]]]]}},{"type":"Feature","properties":{"name":"神奈川県"},"geometry":{"type":"Polygon","coordinates":[[[139.711,35.491],[139.788,35.524],[139.768,35.539],[139.726,35.543],[139.703,35.537],[139.681,35.561],[139.655,35.59],[139.643,35.598],[139.597,35.618],[139.59,35.618],[139.562,35.633],[139.525,35.643],[139.515,35.625],[139.495,35.617],[139.464,35.625],[139.449,35.612],[139.464,35.609],[139.507,35.576],[139.483,35.571],[139.47,35.57],[139.487,35.536],[139.485,35.504],[139.468,35.502],[139.456,35.52],[139.458,35.528],[139.418,35.562],[139.409,35.575],[139.361,35.599],[139.269,35.609],[139.252,35.602],[139.22,35.626],[139.216,35.646],[139.179,35.646],[139.162,35.668],[139.131,35.672],[139.117,35.655],[139.134,35.616],[139.128,35.563],[139.112,35.55],[139.114,35.538],[139.086,35.512],[139.066,35.509],[139.046,35.51],[139.028,35.481],[138.989,35.474],[138.937,35.449],[138.916,35.401],[139.002,35.399],[139.011,35.338],[139.019,35.33],[139.005,35.29],[138.993,35.285],[138.975,35.264],[138.976,35.236],[138.988,35.201],[139.002,35.19],[139.014,35.182],[139.027,35.175],[139.03,35.15],[139.111,35.141],[139.137,35.149],[139.137,35.179],[139.148,35.239],[139.208,35.277],[139.234,35.286],[139.269,35.297],[139.33,35.312],[139.374,35.315],[139.438,35.319],[139.489,35.308],[139.552,35.299],[139.57,35.285],[139.578,35.253],[139.6,35.239],[139.616,35.19],[139.615,35.139],[139.669,35.142],[139.655,35.181],[139.665,35.193],[139.693,35.209],[139.725,35.212],[139.74,35.261],[139.691,35.266],[139.674,35.287],[139.642,35.299],[139.632,35.325],[139.657,35.342],[139.646,35.391],[139.629,35.384],[139.642,35.412],[139.67,35.403],[139.691,35.439],[139.67,35.451],[139.636,35.455],[139.633,35.465],[139.667,35.484],[139.711,35.491]]]}},{"type":"Feature","properties":{"name":"山梨県"},"geometry":{"type":"Polygon","coordinates":[[[138.622,35.87],[138.592,35.918],[138.554,35.919],[138.498,35.911],[138.49,35.896],[138.454,35.903],[138.454,35.938],[138.424,35.959],[138.37,35.971],[138.36,35.957],[138.324,35.902],[138.284,35.859],[138.249,35.886],[138.188,35.8],[138.198,35.782],[138.23,35.753],[138.181,35.711],[138.193,35.672],[138.219,35.644],[138.228,35.646],[138.228,35.627],[138.244,35.563],[138.259,35.553],[138.258,35.476],[138.244,35.454],[138.259,35.431],[138.258,35.407],[138.232,35.371],[138.251,35.364],[138.258,35.316],[138.285,35.304],[138.296,35.317],[138.336,35.326],[138.372,35.299],[138.367,35.27],[138.386,35.246],[138.399,35.2],[138.431,35.18],[138.461,35.179],[138.491,35.168],[138.522,35.199],[138.532,35.223],[138.514,35.262],[138.522,35.283],[138.512,35.314],[138.535,35.331],[138.528,35.379],[138.532,35.409],[138.582,35.446],[138.598,35.432],[138.609,35.393],[138.639,35.398],[138.671,35.393],[138.681,35.358],[138.73,35.363],[138.731,35.363],[138.799,35.377],[138.822,35.374],[138.862,35.39],[138.873,35.382],[138.916,35.401],[138.937,35.449],[138.989,35.474],[139.028,35.481],[139.046,35.51],[139.066,35.509],[139.086,35.512],[139.114,35.538],[139.112,35.55],[139.128,35.563],[139.134,35.616],[139.117,35.655],[139.131,35.672],[139.106,35.691],[139.072,35.695],[139.023,35.722],[139.012,35.739],[139.012,35.739],[138.984,35.769],[138.962,35.83],[138.944,35.855],[138.911,35.853],[138.892,35.84],[138.863,35.859],[138.845,35.867],[138.814,35.862],[138.789,35.893],[138.729,35.909],[138.708,35.91],[138.661,35.874],[138.622,35.87]]]}},{"type":"Feature","properties":{"name":"静岡県"},"geometry":{"type":"Polygon","coordinates":[[[138.219,35.644],[138.203,35.632],[138.206,35.608],[138.184,35.573],[138.152,35.571],[138.159,35.545],[138.138,35.522],[138.14,35.5],[138.158,35.494],[138.157,35.46],[138.12,35.455],[138.122,35.429],[138.153,35.398],[138.141,35.369],[138.115,35.365],[138.087,35.338],[138.061,35.347],[138.026,35.32],[138.019,35.301],[137.992,35.302],[137.967,35.284],[137.929,35.275],[137.919,35.254],[137.895,35.258],[137.873,35.219],[137.838,35.212],[137.81,35.175],[137.822,35.148],[137.797,35.127],[137.801,35.107],[137.778,35.1],[137.776,35.078],[137.74,35.057],[137.705,35.015],[137.704,34.97],[137.675,34.945],[137.66,34.945],[137.641,34.893],[137.598,34.873],[137.587,34.85],[137.565,34.852],[137.524,34.841],[137.499,34.827],[137.487,34.812],[137.493,34.787],[137.477,34.775],[137.474,34.75],[137.492,34.702],[137.485,34.674],[137.571,34.68],[137.598,34.678],[137.677,34.67],[137.799,34.646],[137.912,34.666],[137.97,34.665],[138.078,34.642],[138.192,34.601],[138.207,34.62],[138.193,34.645],[138.195,34.665],[138.224,34.722],[138.246,34.741],[138.294,34.767],[138.337,34.828],[138.328,34.867],[138.348,34.899],[138.357,34.915],[138.411,34.941],[138.475,34.962],[138.508,34.978],[138.533,35.013],[138.503,35.012],[138.5,35.03],[138.524,35.043],[138.559,35.102],[138.579,35.112],[138.639,35.116],[138.709,35.137],[138.753,35.132],[138.808,35.116],[138.845,35.095],[138.874,35.069],[138.892,35.031],[138.844,35.014],[138.784,35.025],[138.762,34.972],[138.776,34.939],[138.789,34.906],[138.757,34.885],[138.767,34.859],[138.772,34.847],[138.751,34.821],[138.776,34.763],[138.742,34.724],[138.741,34.7],[138.777,34.676],[138.776,34.641],[138.808,34.628],[138.843,34.601],[138.865,34.619],[138.905,34.629],[138.918,34.653],[138.957,34.676],[138.993,34.718],[139.005,34.751],[139.026,34.764],[139.058,34.785],[139.079,34.824],[139.083,34.853],[139.132,34.88],[139.148,34.936],[139.128,34.969],[139.106,34.97],[139.083,35.001],[139.099,35.031],[139.074,35.047],[139.077,35.098],[139.111,35.141],[139.03,35.15],[139.027,35.175],[139.014,35.182],[139.002,35.19],[138.988,35.201],[138.976,35.236],[138.975,35.264],[138.993,35.285],[139.005,35.29],[139.019,35.33],[139.011,35.338],[139.002,35.399],[138.916,35.401],[138.873,35.382],[138.862,35.39],[138.822,35.374],[138.799,35.377],[138.731,35.363],[138.73,35.363],[138.681,35.358],[138.671,35.393],[138.639,35.398],[138.609,35.393],[138.598,35.432],[138.582,35.446],[138.532,35.409],[138.528,35.379],[138.535,35.331],[138.512,35.314],[138.522,35.283],[138.514,35.262],[138.532,35.223],[138.522,35.199],[138.491,35.168],[138.461,35.179],[138.431,35.18],[138.399,35.2],[138.386,35.246],[138.367,35.27],[138.372,35.299],[138.336,35.326],[138.296,35.317],[138.285,35.304],[138.258,35.316],[138.251,35.364],[138.232,35.371],[138.258,35.407],[138.259,35.431],[138.244,35.454],[138.258,35.476],[138.259,35.553],[138.244,35.563],[138.228,35.627],[138.228,35.646],[138.219,35.644]]]}}]};
+const WIDE_NODES = {"nodata_山梨県": {"kind": "nodata", "lat": 35.6153, "lon": 138.6083, "name": "山梨県"}, "nodata_群馬県": {"kind": "nodata", "lat": 36.507, "lon": 138.9812, "name": "群馬県"}, "nodata_静岡県": {"kind": "nodata", "lat": 35.0198, "lon": 138.3265, "name": "静岡県"}, "other_千葉県": {"in": 10012, "kind": "other", "lat": 35.517, "lon": 140.2006, "name": "千葉県内その他", "out": 414}, "other_埼玉県": {"in": 14104, "kind": "other", "lat": 35.9999, "lon": 139.3441, "name": "埼玉県内その他", "out": 311}, "other_東京都(多摩)": {"in": 4735, "kind": "other", "lat": 35.3012, "lon": 139.4945, "name": "都内その他市町村", "out": 157}, "other_神奈川県": {"in": 9638, "kind": "other", "lat": 35.4167, "lon": 139.3341, "name": "神奈川県内その他", "out": 254}, "さいたま市": {"in": 18605, "kind": "city", "lat": 35.90746, "lon": 139.6546, "name": "さいたま市", "out": 509}, "ふじみ野市": {"in": 1685, "kind": "city", "lat": 35.86489, "lon": 139.51439, "name": "ふじみ野市", "out": 37}, "三郷市": {"in": 1254, "kind": "city", "lat": 35.83147, "lon": 139.87206, "name": "三郷市", "out": 24}, "三鷹市": {"in": 5259, "kind": "city", "lat": 35.68465, "lon": 139.56044, "name": "三鷹市", "out": 293}, "上尾市": {"in": 2287, "kind": "city", "lat": 35.97035, "lon": 139.5819, "name": "上尾市", "out": 40}, "入間市": {"in": 1556, "kind": "city", "lat": 35.81827, "lon": 139.36772, "name": "入間市", "out": 20}, "八千代市": {"in": 1627, "kind": "city", "lat": 35.73937, "lon": 140.10539, "name": "八千代市", "out": 43}, "八王子市": {"in": 7474, "kind": "city", "lat": 35.65984, "lon": 139.28766, "name": "八王子市", "out": 388}, "千葉市": {"in": 5961, "kind": "city", "lat": 35.60316, "lon": 140.16566, "name": "千葉市", "out": 253}, "和光市": {"in": 2806, "kind": "city", "lat": 35.7896, "lon": 139.61936, "name": "和光市", "out": 101}, "国分寺市": {"in": 3353, "kind": "city", "lat": 35.70554, "lon": 139.46117, "name": "国分寺市", "out": 99}, "多摩市": {"in": 3369, "kind": "city", "lat": 35.63061, "lon": 139.4399, "name": "多摩市", "out": 139}, "大和市": {"in": 1719, "kind": "city", "lat": 35.47359, "lon": 139.45645, "name": "大和市", "out": 20}, "富士見市": {"in": 1907, "kind": "city", "lat": 35.85492, "lon": 139.55435, "name": "富士見市", "out": 12}, "小平市": {"in": 5040, "kind": "city", "lat": 35.72732, "lon": 139.48165, "name": "小平市", "out": 208}, "小金井市": {"in": 3831, "kind": "city", "lat": 35.7011, "lon": 139.51102, "name": "小金井市", "out": 132}, "川口市": {"in": 9645, "kind": "city", "lat": 35.83328, "lon": 139.73311, "name": "川口市", "out": 157}, "川崎市": {"in": 22995, "kind": "city", "lat": 35.56951, "lon": 139.62549, "name": "川崎市", "out": 747}, "川越市": {"in": 3452, "kind": "city", "lat": 35.9113, "lon": 139.47973, "name": "川越市", "out": 110}, "市川市": {"in": 7750, "kind": "city", "lat": 35.71882, "lon": 139.93303, "name": "市川市", "out": 174}, "府中市": {"in": 6235, "kind": "city", "lat": 35.67049, "lon": 139.4832, "name": "府中市", "out": 246}, "我孫子市": {"in": 1108, "kind": "city", "lat": 35.86952, "lon": 140.0649, "name": "我孫子市", "out": 11}, "戸田市": {"in": 3411, "kind": "city", "lat": 35.81415, "lon": 139.65685, "name": "戸田市", "out": 107}, "所沢市": {"in": 6107, "kind": "city", "lat": 35.79969, "lon": 139.45798, "name": "所沢市", "out": 133}, "新座市": {"in": 2667, "kind": "city", "lat": 35.79043, "lon": 139.56136, "name": "新座市", "out": 75}, "日野市": {"in": 3158, "kind": "city", "lat": 35.66337, "lon": 139.39866, "name": "日野市", "out": 74}, "春日部市": {"in": 1287, "kind": "city", "lat": 35.98267, "lon": 139.77593, "name": "春日部市", "out": 10}, "昭島市": {"in": 1523, "kind": "city", "lat": 35.70784, "lon": 139.36413, "name": "昭島市", "out": 53}, "朝霞市": {"in": 3207, "kind": "city", "lat": 35.80911, "lon": 139.59724, "name": "朝霞市", "out": 72}, "東久留米市": {"in": 2365, "kind": "city", "lat": 35.75382, "lon": 139.51975, "name": "東久留米市", "out": 63}, "東大和市": {"in": 1362, "kind": "city", "lat": 35.75026, "lon": 139.42654, "name": "東大和市", "out": 24}, "東村山市": {"in": 4086, "kind": "city", "lat": 35.75923, "lon": 139.47234, "name": "東村山市", "out": 82}, "松戸市": {"in": 5192, "kind": "city", "lat": 35.79608, "lon": 139.92913, "name": "松戸市", "out": 89}, "柏市": {"in": 3732, "kind": "city", "lat": 35.86002, "lon": 139.99413, "name": "柏市", "out": 88}, "横浜市": {"in": 29192, "kind": "city", "lat": 35.46023, "lon": 139.57729, "name": "横浜市", "out": 1255}, "武蔵野市": {"in": 4643, "kind": "city", "lat": 35.70813, "lon": 139.56163, "name": "武蔵野市", "out": 431}, "流山市": {"in": 2221, "kind": "city", "lat": 35.87328, "lon": 139.91393, "name": "流山市", "out": 21}, "清瀬市": {"in": 1263, "kind": "city", "lat": 35.78142, "lon": 139.52216, "name": "清瀬市", "out": 50}, "狛江市": {"in": 2606, "kind": "city", "lat": 35.6349, "lon": 139.57719, "name": "狛江市", "out": 30}, "狭山市": {"in": 1927, "kind": "city", "lat": 35.85977, "lon": 139.4203, "name": "狭山市", "out": 42}, "町田市": {"in": 6016, "kind": "city", "lat": 35.57623, "lon": 139.43023, "name": "町田市", "out": 159}, "相模原市": {"in": 6544, "kind": "city", "lat": 35.56435, "lon": 139.23936, "name": "相模原市", "out": 110}, "稲城市": {"in": 2024, "kind": "city", "lat": 35.63293, "lon": 139.49291, "name": "稲城市", "out": 34}, "立川市": {"in": 2997, "kind": "city", "lat": 35.71441, "lon": 139.40451, "name": "立川市", "out": 226}, "船橋市": {"in": 6966, "kind": "city", "lat": 35.72607, "lon": 140.01861, "name": "船橋市", "out": 152}, "草加市": {"in": 2150, "kind": "city", "lat": 35.8387, "lon": 139.80229, "name": "草加市", "out": 40}, "蕨市": {"in": 1396, "kind": "city", "lat": 35.824, "lon": 139.68774, "name": "蕨市", "out": 19}, "藤沢市": {"in": 2681, "kind": "city", "lat": 35.36831, "lon": 139.45892, "name": "藤沢市", "out": 76}, "西東京市": {"in": 7781, "kind": "city", "lat": 35.73487, "lon": 139.54622, "name": "西東京市", "out": 165}, "調布市": {"in": 8217, "kind": "city", "lat": 35.65761, "lon": 139.55225, "name": "調布市", "out": 264}, "越谷市": {"in": 2789, "kind": "city", "lat": 35.90047, "lon": 139.79052, "name": "越谷市", "out": 45}, "鎌倉市": {"in": 1275, "kind": "city", "lat": 35.32991, "lon": 139.53811, "name": "鎌倉市", "out": 29}};
 const SHINJUKU = "13104";
+const NS = 'http://www.w3.org/2000/svg';
 
-const svg = document.getElementById('mapSvg');
-const VB_W = 760, VB_H = 700, PAD = 34;
+function fmt(n){ return n.toLocaleString('ja-JP'); }
 
-// ---- projection ----
-let lonMin=Infinity, lonMax=-Infinity, latMin=Infinity, latMax=-Infinity;
-function scan(coords, depth){
-  if(depth===0){ const [lon,lat]=coords; if(lon<lonMin)lonMin=lon; if(lon>lonMax)lonMax=lon; if(lat<latMin)latMin=lat; if(lat>latMax)latMax=lat; return; }
-  coords.forEach(c=>scan(c, depth-1));
+// ---- shared helpers ----
+function makeProjector(geometries, vbW, vbH, pad){
+  let lonMin=Infinity, lonMax=-Infinity, latMin=Infinity, latMax=-Infinity;
+  function scan(coords, depth){
+    if(depth===0){ const [lon,lat]=coords; if(lon<lonMin)lonMin=lon; if(lon>lonMax)lonMax=lon; if(lat<latMin)latMin=lat; if(lat>latMax)latMax=lat; return; }
+    coords.forEach(c=>scan(c, depth-1));
+  }
+  geometries.forEach(g=>{ scan(g.coordinates, g.type==='Polygon'?2:3); });
+  const cosLat = Math.cos((latMin+latMax)/2 * Math.PI/180);
+  const lonSpan = (lonMax-lonMin)*cosLat, latSpan = (latMax-latMin);
+  const scale = Math.min((vbW-2*pad)/lonSpan, (vbH-2*pad)/latSpan);
+  const padX = (vbW - lonSpan*scale)/2, padY = (vbH - latSpan*scale)/2;
+  return function project([lon,lat]){
+    return [padX + (lon-lonMin)*cosLat*scale, padY + (latMax-lat)*scale];
+  };
 }
-WARDS.features.forEach(f=>{
-  const depth = f.geometry.type==='Polygon'?2:3;
-  scan(f.geometry.coordinates, depth);
-});
-const cosLat = Math.cos((latMin+latMax)/2 * Math.PI/180);
-const lonSpan = (lonMax-lonMin)*cosLat;
-const latSpan = (latMax-latMin);
-const scale = Math.min((VB_W-2*PAD)/lonSpan, (VB_H-2*PAD)/latSpan);
-const padX = (VB_W - lonSpan*scale)/2;
-const padY = (VB_H - latSpan*scale)/2;
-function project([lon,lat]){
-  const x = padX + (lon-lonMin)*cosLat*scale;
-  const y = padY + (latMax-lat)*scale;
-  return [x,y];
-}
-
-function ringPath(ring){
+function ringPath(ring, project){
   return 'M'+ring.map(pt=>{const [x,y]=project(pt); return x.toFixed(1)+','+y.toFixed(1);}).join('L')+'Z';
 }
-function geomPath(geom){
-  if(geom.type==='Polygon') return geom.coordinates.map(ringPath).join(' ');
-  return geom.coordinates.map(poly=>poly.map(ringPath).join(' ')).join(' ');
+function geomPath(geom, project){
+  if(geom.type==='Polygon') return geom.coordinates.map(r=>ringPath(r,project)).join(' ');
+  return geom.coordinates.map(poly=>poly.map(r=>ringPath(r,project)).join(' ')).join(' ');
 }
-
-// ---- draw wards ----
-const NS='http://www.w3.org/2000/svg';
-const gWards = document.createElementNS(NS,'g');
-const gFlows = document.createElementNS(NS,'g');
-const gParticles = document.createElementNS(NS,'g');
-const gLabels = document.createElementNS(NS,'g');
-svg.appendChild(gWards); svg.appendChild(gFlows); svg.appendChild(gParticles); svg.appendChild(gLabels);
-
-const tooltip = document.getElementById('tooltip');
-const mapCard = document.querySelector('.map-card');
-
-WARDS.features.forEach(f=>{
-  const code = f.properties.code, name = f.properties.name;
-  const path = document.createElementNS(NS,'path');
-  path.setAttribute('d', geomPath(f.geometry));
-  path.setAttribute('fill-rule','evenodd');
-  path.classList.add('ward-shape');
-  if(code===SHINJUKU) path.classList.add('shinjuku');
-  path.addEventListener('mousemove', (e)=>showTooltip(e, code));
-  path.addEventListener('mouseleave', hideTooltip);
-  path.addEventListener('click', ()=>selectWard(code));
-  gWards.appendChild(path);
-
-  const c = CENTROIDS[code];
-  const [lx,ly] = project([c.lon, c.lat]);
-  const label = document.createElementNS(NS,'text');
-  label.setAttribute('x', lx); label.setAttribute('y', ly);
-  label.textContent = name.replace('区','');
-  label.classList.add('ward-label');
-  if(code===SHINJUKU) label.classList.add('shinjuku-label');
-  gLabels.appendChild(label);
-});
-
-// ---- flow arcs ----
 function arcD(x1,y1,x2,y2,bend){
   const mx=(x1+x2)/2, my=(y1+y2)/2;
   const dx=x2-x1, dy=y2-y1;
@@ -219,172 +230,457 @@ function arcD(x1,y1,x2,y2,bend){
   const cx = mx+nx*off, cy = my+ny*off;
   return `M${x1.toFixed(1)},${y1.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
 }
+function widthFor(v, max){ return 1.1 + Math.sqrt(Math.max(v,0)/max)*9; }
 
-const maxOut = Math.max(...Object.values(FLOW).map(v=>v.out));
-const maxIn = Math.max(...Object.values(FLOW).map(v=>v.in));
-function widthFor(v, max){ return 1.1 + Math.sqrt(v/max)*9; }
+// ==================================================================
+// View 1: detail (23 wards)
+// ==================================================================
+(function(){
+  const svg = document.getElementById('mapSvgDetail');
+  const tooltip = document.getElementById('tooltipDetail');
+  const mapCard = document.getElementById('detailMapCard');
+  const project = makeProjector(WARDS.features.map(f=>f.geometry), 760, 700, 34);
 
-const shinC = CENTROIDS[SHINJUKU];
-const [sx,sy] = project([shinC.lon, shinC.lat]);
+  const gWards = document.createElementNS(NS,'g');
+  const gFlows = document.createElementNS(NS,'g');
+  const gParticles = document.createElementNS(NS,'g');
+  const gLabels = document.createElementNS(NS,'g');
+  svg.append(gWards, gFlows, gParticles, gLabels);
 
-const arcs = {}; // code -> {out:{path,length}, in:{...}}
-Object.keys(FLOW).forEach(code=>{
-  if(code===SHINJUKU) return;
-  const c = CENTROIDS[code];
-  const [wx,wy] = project([c.lon, c.lat]);
-  const f = FLOW[code];
+  WARDS.features.forEach(f=>{
+    const code = f.properties.code, name = f.properties.name;
+    const path = document.createElementNS(NS,'path');
+    path.setAttribute('d', geomPath(f.geometry, project));
+    path.setAttribute('fill-rule','evenodd');
+    path.classList.add('ward-shape');
+    if(code===SHINJUKU) path.classList.add('shinjuku');
+    path.addEventListener('mousemove', (e)=>showTooltip(e, code));
+    path.addEventListener('mouseleave', hideTooltip);
+    path.addEventListener('click', ()=>selectWard(code));
+    gWards.appendChild(path);
 
-  // out: shinjuku -> ward
-  const outPath = document.createElementNS(NS,'path');
-  outPath.setAttribute('d', arcD(sx,sy,wx,wy,0.16));
-  outPath.classList.add('flow-arc','out');
-  outPath.setAttribute('stroke-width', widthFor(f.out, maxOut).toFixed(2));
-  outPath.setAttribute('opacity', 0.75);
-  gFlows.appendChild(outPath);
-
-  // in: ward -> shinjuku
-  const inPath = document.createElementNS(NS,'path');
-  inPath.setAttribute('d', arcD(wx,wy,sx,sy,0.16));
-  inPath.classList.add('flow-arc','in');
-  inPath.setAttribute('stroke-width', widthFor(f.in, maxIn).toFixed(2));
-  inPath.setAttribute('opacity', 0.75);
-  gFlows.appendChild(inPath);
-
-  arcs[code] = {
-    out:{el:outPath, len:outPath.getTotalLength(), val:f.out},
-    in:{el:inPath, len:inPath.getTotalLength(), val:f.in}
-  };
-});
-
-// ---- particles ----
-const particles = [];
-function makeParticles(kind, count){
-  Object.keys(arcs).forEach(code=>{
-    const a = arcs[code][kind];
-    if(a.val<=0) return;
-    for(let i=0;i<count;i++){
-      const c = document.createElementNS(NS,'circle');
-      c.setAttribute('r', 2.2);
-      c.classList.add('flow-particle', kind);
-      gParticles.appendChild(c);
-      particles.push({el:c, path:a.el, len:a.len, offset:i/count, speed: 0.00014 + Math.random()*0.00006, kind});
-    }
+    const c = CENTROIDS[code];
+    const [lx,ly] = project([c.lon, c.lat]);
+    const label = document.createElementNS(NS,'text');
+    label.setAttribute('x', lx); label.setAttribute('y', ly);
+    label.textContent = name.replace('区','');
+    label.classList.add('ward-label');
+    if(code===SHINJUKU) label.classList.add('shinjuku-label');
+    gLabels.appendChild(label);
   });
-}
 
-let currentMode = 'both';
-function rebuildParticles(){
-  particles.forEach(p=>p.el.remove());
-  particles.length = 0;
-  if(currentMode==='both' || currentMode==='out') makeParticles('out', 2);
-  if(currentMode==='both' || currentMode==='in') makeParticles('in', 2);
-}
-rebuildParticles();
+  const maxOut = Math.max(...Object.values(FLOW).map(v=>v.out));
+  const maxIn = Math.max(...Object.values(FLOW).map(v=>v.in));
+  const shinC = CENTROIDS[SHINJUKU];
+  const [sx,sy] = project([shinC.lon, shinC.lat]);
 
-let lastT = 0;
-function tick(t){
-  particles.forEach(p=>{
-    const frac = (p.offset + t*p.speed) % 1;
-    const pt = p.path.getPointAtLength(frac*p.len);
-    p.el.setAttribute('cx', pt.x); p.el.setAttribute('cy', pt.y);
+  const arcs = {};
+  Object.keys(FLOW).forEach(code=>{
+    if(code===SHINJUKU) return;
+    const c = CENTROIDS[code];
+    const [wx,wy] = project([c.lon, c.lat]);
+    const f = FLOW[code];
+
+    const outPath = document.createElementNS(NS,'path');
+    outPath.setAttribute('d', arcD(sx,sy,wx,wy,0.16));
+    outPath.classList.add('flow-arc','out');
+    outPath.setAttribute('stroke-width', widthFor(f.out, maxOut).toFixed(2));
+    outPath.setAttribute('opacity', 0.75);
+    gFlows.appendChild(outPath);
+
+    const inPath = document.createElementNS(NS,'path');
+    inPath.setAttribute('d', arcD(wx,wy,sx,sy,0.16));
+    inPath.classList.add('flow-arc','in');
+    inPath.setAttribute('stroke-width', widthFor(f.in, maxIn).toFixed(2));
+    inPath.setAttribute('opacity', 0.75);
+    gFlows.appendChild(inPath);
+
+    arcs[code] = {
+      out:{el:outPath, len:outPath.getTotalLength(), val:f.out},
+      in:{el:inPath, len:inPath.getTotalLength(), val:f.in}
+    };
   });
-  requestAnimationFrame(tick);
-}
-requestAnimationFrame(tick);
 
-// ---- mode switching ----
-function applyMode(mode){
-  currentMode = mode;
-  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
-  Object.values(arcs).forEach(a=>{
-    a.out.el.style.display = (mode==='both'||mode==='out') ? '' : 'none';
-    a.in.el.style.display = (mode==='both'||mode==='in') ? '' : 'none';
-  });
+  const particles = [];
+  function makeParticles(kind, count){
+    Object.keys(arcs).forEach(code=>{
+      const a = arcs[code][kind];
+      if(a.val<=0) return;
+      for(let i=0;i<count;i++){
+        const c = document.createElementNS(NS,'circle');
+        c.setAttribute('r', 2.2);
+        c.classList.add('flow-particle', kind);
+        gParticles.appendChild(c);
+        particles.push({el:c, path:a.el, len:a.len, offset:i/count, speed: 0.00014 + Math.random()*0.00006});
+      }
+    });
+  }
+  let currentMode = 'both';
+  function rebuildParticles(){
+    particles.forEach(p=>p.el.remove());
+    particles.length = 0;
+    if(currentMode==='both' || currentMode==='out') makeParticles('out', 2);
+    if(currentMode==='both' || currentMode==='in') makeParticles('in', 2);
+  }
   rebuildParticles();
-  renderLegend(mode);
-  renderRanking(mode);
-}
-document.getElementById('modeSeg').addEventListener('click', (e)=>{
-  const btn = e.target.closest('button'); if(!btn) return;
-  applyMode(btn.dataset.mode);
-});
+  (function tick(t){
+    particles.forEach(p=>{
+      const frac = (p.offset + t*p.speed) % 1;
+      const pt = p.path.getPointAtLength(frac*p.len);
+      p.el.setAttribute('cx', pt.x); p.el.setAttribute('cy', pt.y);
+    });
+    requestAnimationFrame(tick);
+  })(0);
 
-function renderLegend(mode){
-  const el = document.getElementById('legend');
-  let html = '';
-  if(mode!=='out') html += `<span class="sw"><span class="line" style="border-color:var(--flow-in)"></span>新宿区への流入</span>`;
-  if(mode!=='in') html += `<span class="sw"><span class="line" style="border-color:var(--flow-out)"></span>新宿区からの流出</span>`;
-  html += `<span class="sw"><span class="dot" style="background:var(--shinjuku-fill)"></span>新宿区</span>`;
-  html += `<span class="sw" style="color:var(--text-muted)">線の太さ＝人数（通勤・通学者数、2020年）</span>`;
-  el.innerHTML = html;
-}
-renderLegend('both');
-
-// ---- tooltip ----
-function showTooltip(e, code){
-  const rect = mapCard.getBoundingClientRect();
-  const f = FLOW[code], dn = DAYNIGHT[code], name = CENTROIDS[code].name;
-  let body = `<b>${name}</b><br>`;
-  if(code===SHINJUKU){
-    body += `昼間人口 ${fmt(dn.day)}人<br>夜間人口 ${fmt(dn.night)}人<br>昼夜間人口比率 ${dn.ratio}`;
-  } else {
-    const net = f.in - f.out;
-    body += `新宿区への流入 ${fmt(f.in)}人<br>新宿区からの流出 ${fmt(f.out)}人<br>差引 ${net>=0?'+':''}${fmt(net)}人`;
+  function applyMode(mode){
+    currentMode = mode;
+    document.querySelectorAll('#modeSegDetail button').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+    Object.values(arcs).forEach(a=>{
+      a.out.el.style.display = (mode==='both'||mode==='out') ? '' : 'none';
+      a.in.el.style.display = (mode==='both'||mode==='in') ? '' : 'none';
+    });
+    rebuildParticles();
+    renderLegend(mode);
+    renderRanking(mode);
   }
-  tooltip.innerHTML = body;
-  tooltip.style.left = (e.clientX - rect.left + 14) + 'px';
-  tooltip.style.top = (e.clientY - rect.top + 10) + 'px';
-  tooltip.classList.add('show');
-}
-function hideTooltip(){ tooltip.classList.remove('show'); }
-
-// ---- detail panel ----
-function fmt(n){ return n.toLocaleString('ja-JP'); }
-function selectWard(code){
-  const dn = DAYNIGHT[code], name = CENTROIDS[code].name;
-  const panel = document.getElementById('detailPanel');
-  if(code===SHINJUKU){
-    panel.innerHTML = `<div class="d-title">新宿区</div>
-      <div class="d-row"><span>昼間人口</span><span class="v">${fmt(dn.day)}人</span></div>
-      <div class="d-row"><span>夜間人口</span><span class="v">${fmt(dn.night)}人</span></div>
-      <div class="d-row"><span>昼夜間人口比率</span><span class="v">${dn.ratio}</span></div>`;
-    return;
-  }
-  const f = FLOW[code];
-  const net = f.in - f.out;
-  panel.innerHTML = `<div class="d-title">${name}</div>
-    <div class="d-row"><span>新宿区への流入</span><span class="v">${fmt(f.in)}人</span></div>
-    <div class="d-row"><span>新宿区からの流出</span><span class="v">${fmt(f.out)}人</span></div>
-    <div class="d-row"><span>差引（対新宿区）</span><span class="v ${net>=0?'delta-good':'delta-bad'}">${net>=0?'+':''}${fmt(net)}人</span></div>
-    <div class="d-row" style="margin-top:6px;"><span>昼夜間人口比率</span><span class="v">${dn.ratio}</span></div>`;
-}
-selectWard(SHINJUKU);
-
-// ---- ranking ----
-function renderRanking(mode){
-  const title = document.getElementById('rankTitle');
-  const list = document.getElementById('rankingList');
-  let rows = Object.keys(FLOW).map(code=>({code, name:CENTROIDS[code].name, ...FLOW[code], net: FLOW[code].in-FLOW[code].out}));
-  let key, label, colorVar, max;
-  if(mode==='in'){ key='in'; label='新宿区への流入が多い区 トップ10'; colorVar='--flow-in'; rows.sort((a,b)=>b.in-a.in); max=maxIn; }
-  else if(mode==='out'){ key='out'; label='新宿区からの流出が多い区 トップ10'; colorVar='--flow-out'; rows.sort((a,b)=>b.out-a.out); max=maxOut; }
-  else { key='net'; label='新宿区への流入超過が多い区 トップ10'; colorVar='--flow-in'; rows.sort((a,b)=>b.net-a.net); max=Math.max(...rows.map(r=>Math.abs(r.net))); }
-  title.textContent = label;
-  rows = rows.slice(0,10);
-  list.innerHTML = rows.map((r,i)=>{
-    const val = r[key];
-    const barColor = (mode==='both' && val<0) ? 'var(--flow-out)' : `var(${colorVar})`;
-    const widthPct = Math.max(4, Math.abs(val)/max*100).toFixed(1);
-    return `<li class="rank-row" data-code="${r.code}">
-      <span class="idx">${i+1}</span>
-      <span class="name">${r.name}</span>
-      <span class="rank-bar-track"><span class="rank-bar-fill" style="width:${widthPct}%;background:${barColor};"></span></span>
-      <span class="rank-val">${val>=0&&mode==='both'?'+':''}${fmt(val)}</span>
-    </li>`;
-  }).join('');
-  list.querySelectorAll('.rank-row').forEach(row=>{
-    row.addEventListener('click', ()=>selectWard(row.dataset.code));
+  document.getElementById('modeSegDetail').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button'); if(!btn) return;
+    applyMode(btn.dataset.mode);
   });
-}
-renderRanking('both');
+
+  function renderLegend(mode){
+    const el = document.getElementById('legendDetail');
+    let html = '';
+    if(mode!=='out') html += `<span class="sw"><span class="line" style="border-color:var(--flow-in)"></span>新宿区への流入</span>`;
+    if(mode!=='in') html += `<span class="sw"><span class="line" style="border-color:var(--flow-out)"></span>新宿区からの流出</span>`;
+    html += `<span class="sw"><span class="dot" style="background:var(--shinjuku-fill)"></span>新宿区</span>`;
+    html += `<span class="sw" style="color:var(--text-muted)">線の太さ＝人数（通勤・通学者数、2020年）</span>`;
+    el.innerHTML = html;
+  }
+  renderLegend('both');
+
+  function showTooltip(e, code){
+    const rect = mapCard.getBoundingClientRect();
+    const f = FLOW[code], dn = DAYNIGHT[code], name = CENTROIDS[code].name;
+    let body = `<b>${name}</b><br>`;
+    if(code===SHINJUKU){
+      body += `昼間人口 ${fmt(dn.day)}人<br>夜間人口 ${fmt(dn.night)}人<br>昼夜間人口比率 ${dn.ratio}`;
+    } else {
+      const net = f.in - f.out;
+      body += `新宿区への流入 ${fmt(f.in)}人<br>新宿区からの流出 ${fmt(f.out)}人<br>差引 ${net>=0?'+':''}${fmt(net)}人`;
+    }
+    tooltip.innerHTML = body;
+    tooltip.style.left = (e.clientX - rect.left + 14) + 'px';
+    tooltip.style.top = (e.clientY - rect.top + 10) + 'px';
+    tooltip.classList.add('show');
+  }
+  function hideTooltip(){ tooltip.classList.remove('show'); }
+
+  function selectWard(code){
+    const dn = DAYNIGHT[code], name = CENTROIDS[code].name;
+    const panel = document.getElementById('detailPanelDetail');
+    if(code===SHINJUKU){
+      panel.innerHTML = `<div class="d-title">新宿区</div>
+        <div class="d-row"><span>昼間人口</span><span class="v">${fmt(dn.day)}人</span></div>
+        <div class="d-row"><span>夜間人口</span><span class="v">${fmt(dn.night)}人</span></div>
+        <div class="d-row"><span>昼夜間人口比率</span><span class="v">${dn.ratio}</span></div>`;
+      return;
+    }
+    const f = FLOW[code];
+    const net = f.in - f.out;
+    panel.innerHTML = `<div class="d-title">${name}</div>
+      <div class="d-row"><span>新宿区への流入</span><span class="v">${fmt(f.in)}人</span></div>
+      <div class="d-row"><span>新宿区からの流出</span><span class="v">${fmt(f.out)}人</span></div>
+      <div class="d-row"><span>差引（対新宿区）</span><span class="v ${net>=0?'delta-good':'delta-bad'}">${net>=0?'+':''}${fmt(net)}人</span></div>
+      <div class="d-row" style="margin-top:6px;"><span>昼夜間人口比率</span><span class="v">${dn.ratio}</span></div>`;
+  }
+  selectWard(SHINJUKU);
+
+  function renderRanking(mode){
+    const title = document.getElementById('rankTitleDetail');
+    const list = document.getElementById('rankingListDetail');
+    let rows = Object.keys(FLOW).map(code=>({code, name:CENTROIDS[code].name, ...FLOW[code], net: FLOW[code].in-FLOW[code].out}));
+    let key, label, colorVar, max;
+    if(mode==='in'){ key='in'; label='新宿区への流入が多い区 トップ10'; colorVar='--flow-in'; rows.sort((a,b)=>b.in-a.in); max=maxIn; }
+    else if(mode==='out'){ key='out'; label='新宿区からの流出が多い区 トップ10'; colorVar='--flow-out'; rows.sort((a,b)=>b.out-a.out); max=maxOut; }
+    else { key='net'; label='新宿区への流入超過が多い区 トップ10'; colorVar='--flow-in'; rows.sort((a,b)=>b.net-a.net); max=Math.max(...rows.map(r=>Math.abs(r.net))); }
+    title.textContent = label;
+    rows = rows.slice(0,10);
+    list.innerHTML = rows.map((r,i)=>{
+      const val = r[key];
+      const barColor = (mode==='both' && val<0) ? 'var(--flow-out)' : `var(${colorVar})`;
+      const widthPct = Math.max(4, Math.abs(val)/max*100).toFixed(1);
+      return `<li class="rank-row" data-code="${r.code}">
+        <span class="idx">${i+1}</span>
+        <span class="name">${r.name}</span>
+        <span class="rank-bar-track"><span class="rank-bar-fill" style="width:${widthPct}%;background:${barColor};"></span></span>
+        <span class="rank-val">${val>=0&&mode==='both'?'+':''}${fmt(val)}</span>
+      </li>`;
+    }).join('');
+    list.querySelectorAll('.rank-row').forEach(row=>{
+      row.addEventListener('click', ()=>selectWard(row.dataset.code));
+    });
+  }
+  renderRanking('both');
+})();
+
+// ==================================================================
+// View 2: wide (Kanto + Yamanashi/Shizuoka)
+// ==================================================================
+(function(){
+  const svg = document.getElementById('mapSvgWide');
+  const tooltip = document.getElementById('tooltipWide');
+  const mapCard = document.getElementById('wideMapCard');
+  const VB_W = 900, VB_H = 780, PAD = 30;
+  const project = makeProjector(
+    [...PREFS.features.map(f=>f.geometry), ...WARDS.features.map(f=>f.geometry)],
+    VB_W, VB_H, PAD
+  );
+
+  const gPrefs = document.createElementNS(NS,'g');
+  const gWards = document.createElementNS(NS,'g');
+  const gFlows = document.createElementNS(NS,'g');
+  const gParticles = document.createElementNS(NS,'g');
+  const gNodes = document.createElementNS(NS,'g');
+  svg.append(gPrefs, gWards, gFlows, gParticles, gNodes);
+
+  // background prefecture polygons
+  PREFS.features.forEach(f=>{
+    const path = document.createElementNS(NS,'path');
+    path.setAttribute('d', geomPath(f.geometry, project));
+    path.setAttribute('fill-rule','evenodd');
+    path.classList.add('pref-shape');
+    gPrefs.appendChild(path);
+  });
+
+  // 23 wards on top (smaller, still clickable)
+  WARDS.features.forEach(f=>{
+    const code = f.properties.code, name = f.properties.name;
+    const path = document.createElementNS(NS,'path');
+    path.setAttribute('d', geomPath(f.geometry, project));
+    path.setAttribute('fill-rule','evenodd');
+    path.classList.add('ward-shape');
+    if(code===SHINJUKU) path.classList.add('shinjuku');
+    path.addEventListener('mousemove', (e)=>showWardTooltip(e, code));
+    path.addEventListener('mouseleave', hideTooltip);
+    path.addEventListener('click', ()=>selectNode({type:'ward', code}));
+    gWards.appendChild(path);
+  });
+
+  // combine flow targets: 22 wards (excluding Shinjuku) + wide extra nodes
+  const wardNodes = Object.keys(FLOW).map(code=>({
+    key:'ward:'+code, code, type:'ward', name:CENTROIDS[code].name,
+    lon:CENTROIDS[code].lon, lat:CENTROIDS[code].lat,
+    in:FLOW[code].in, out:FLOW[code].out, kind:'ward'
+  }));
+  const extraNodes = Object.keys(WIDE_NODES).map(key=>{
+    const n = WIDE_NODES[key];
+    return {key:'extra:'+key, code:key, type:'extra', name:n.name, lon:n.lon, lat:n.lat,
+      in:n.in, out:n.out, kind:n.kind};
+  });
+  const allNodes = wardNodes.concat(extraNodes);
+  const flowNodes = allNodes.filter(n=>n.kind!=='nodata');
+
+  const maxOut = Math.max(...flowNodes.map(n=>n.out));
+  const maxIn = Math.max(...flowNodes.map(n=>n.in));
+  const shinC = CENTROIDS[SHINJUKU];
+  const [sx,sy] = project([shinC.lon, shinC.lat]);
+
+  const arcs = {};
+  flowNodes.forEach(n=>{
+    const [nx,ny] = project([n.lon, n.lat]);
+    const outPath = document.createElementNS(NS,'path');
+    outPath.setAttribute('d', arcD(sx,sy,nx,ny,0.14));
+    outPath.classList.add('flow-arc','out');
+    outPath.setAttribute('stroke-width', widthFor(n.out, maxOut).toFixed(2));
+    outPath.setAttribute('opacity', 0.7);
+    gFlows.appendChild(outPath);
+
+    const inPath = document.createElementNS(NS,'path');
+    inPath.setAttribute('d', arcD(nx,ny,sx,sy,0.14));
+    inPath.classList.add('flow-arc','in');
+    inPath.setAttribute('stroke-width', widthFor(n.in, maxIn).toFixed(2));
+    inPath.setAttribute('opacity', 0.7);
+    gFlows.appendChild(inPath);
+
+    arcs[n.key] = {
+      out:{el:outPath, len:outPath.getTotalLength(), val:n.out},
+      in:{el:inPath, len:inPath.getTotalLength(), val:n.in}
+    };
+  });
+
+  // node markers for extra nodes (cities / other / nodata) — wards already drawn as polygons
+  const maxNodeIn = Math.max(...extraNodes.filter(n=>n.kind!=='nodata').map(n=>n.in));
+  extraNodes.forEach(n=>{
+    const [nx,ny] = project([n.lon, n.lat]);
+    const c = document.createElementNS(NS,'circle');
+    c.setAttribute('cx', nx); c.setAttribute('cy', ny);
+    let r = 4;
+    if(n.kind!=='nodata') r = 3 + Math.sqrt(n.in/maxNodeIn)*7;
+    c.setAttribute('r', r.toFixed(1));
+    c.classList.add('node-dot', n.kind);
+    c.addEventListener('mousemove', (e)=>showNodeTooltip(e, n));
+    c.addEventListener('mouseleave', hideTooltip);
+    c.addEventListener('click', ()=>selectNode({type:'extra', code:n.code}));
+    gNodes.appendChild(c);
+  });
+
+  const particles = [];
+  function makeParticles(kind, count){
+    flowNodes.forEach(n=>{
+      const a = arcs[n.key][kind];
+      if(a.val<=0) return;
+      for(let i=0;i<count;i++){
+        const c = document.createElementNS(NS,'circle');
+        c.setAttribute('r', 2);
+        c.classList.add('flow-particle', kind);
+        gParticles.appendChild(c);
+        particles.push({el:c, path:a.el, len:a.len, offset:i/count, speed: 0.00014 + Math.random()*0.00006});
+      }
+    });
+  }
+  let currentMode = 'both';
+  function rebuildParticles(){
+    particles.forEach(p=>p.el.remove());
+    particles.length = 0;
+    if(currentMode==='both' || currentMode==='out') makeParticles('out', 1);
+    if(currentMode==='both' || currentMode==='in') makeParticles('in', 1);
+  }
+  rebuildParticles();
+  (function tick(t){
+    particles.forEach(p=>{
+      const frac = (p.offset + t*p.speed) % 1;
+      const pt = p.path.getPointAtLength(frac*p.len);
+      p.el.setAttribute('cx', pt.x); p.el.setAttribute('cy', pt.y);
+    });
+    requestAnimationFrame(tick);
+  })(0);
+
+  function applyMode(mode){
+    currentMode = mode;
+    document.querySelectorAll('#modeSegWide button').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+    Object.values(arcs).forEach(a=>{
+      a.out.el.style.display = (mode==='both'||mode==='out') ? '' : 'none';
+      a.in.el.style.display = (mode==='both'||mode==='in') ? '' : 'none';
+    });
+    rebuildParticles();
+    renderLegend(mode);
+    renderRanking(mode);
+  }
+  document.getElementById('modeSegWide').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button'); if(!btn) return;
+    applyMode(btn.dataset.mode);
+  });
+
+  function renderLegend(mode){
+    const el = document.getElementById('legendWide');
+    let html = '';
+    if(mode!=='out') html += `<span class="sw"><span class="line" style="border-color:var(--flow-in)"></span>新宿区への流入</span>`;
+    if(mode!=='in') html += `<span class="sw"><span class="line" style="border-color:var(--flow-out)"></span>新宿区からの流出</span>`;
+    html += `<span class="sw"><span class="dot" style="background:var(--shinjuku-fill)"></span>新宿区</span>`;
+    html += `<span class="sw"><span class="dot" style="background:var(--flow-in);border-radius:50%;"></span>市区町村</span>`;
+    html += `<span class="sw"><span class="dot" style="background:var(--text-muted);border-radius:50%;"></span>県内その他</span>`;
+    html += `<span class="sw"><span class="dot" style="background:transparent;border:1.3px dashed var(--text-muted);border-radius:50%;"></span>データなし（群馬・山梨・静岡）</span>`;
+    el.innerHTML = html;
+  }
+  renderLegend('both');
+
+  function showWardTooltip(e, code){
+    const rect = mapCard.getBoundingClientRect();
+    const f = FLOW[code], name = CENTROIDS[code].name;
+    let body = `<b>${name}</b><br>`;
+    if(code===SHINJUKU){ body += '起点（新宿区）'; }
+    else {
+      const net = f.in - f.out;
+      body += `新宿区への流入 ${fmt(f.in)}人<br>新宿区からの流出 ${fmt(f.out)}人<br>差引 ${net>=0?'+':''}${fmt(net)}人`;
+    }
+    placeTooltip(e, rect, body);
+  }
+  function showNodeTooltip(e, n){
+    const rect = mapCard.getBoundingClientRect();
+    let body = `<b>${n.name}</b><br>`;
+    if(n.kind==='nodata'){
+      body += 'データなし（他の道府県と合算）';
+    } else {
+      const net = n.in - n.out;
+      body += `新宿区への流入 ${fmt(n.in)}人<br>新宿区からの流出 ${fmt(n.out)}人<br>差引 ${net>=0?'+':''}${fmt(net)}人`;
+    }
+    placeTooltip(e, rect, body);
+  }
+  function placeTooltip(e, rect, body){
+    tooltip.innerHTML = body;
+    tooltip.style.left = (e.clientX - rect.left + 14) + 'px';
+    tooltip.style.top = (e.clientY - rect.top + 10) + 'px';
+    tooltip.classList.add('show');
+  }
+  function hideTooltip(){ tooltip.classList.remove('show'); }
+
+  function selectNode(ref){
+    const panel = document.getElementById('detailPanelWide');
+    if(ref.type==='ward' && ref.code===SHINJUKU){
+      const dn = DAYNIGHT[SHINJUKU];
+      panel.innerHTML = `<div class="d-title">新宿区</div>
+        <div class="d-row"><span>昼間人口</span><span class="v">${fmt(dn.day)}人</span></div>
+        <div class="d-row"><span>夜間人口</span><span class="v">${fmt(dn.night)}人</span></div>
+        <div class="d-row"><span>昼夜間人口比率</span><span class="v">${dn.ratio}</span></div>`;
+      return;
+    }
+    if(ref.type==='ward'){
+      const f = FLOW[ref.code], name = CENTROIDS[ref.code].name, net = f.in-f.out;
+      panel.innerHTML = `<div class="d-title">${name}（23区）</div>
+        <div class="d-row"><span>新宿区への流入</span><span class="v">${fmt(f.in)}人</span></div>
+        <div class="d-row"><span>新宿区からの流出</span><span class="v">${fmt(f.out)}人</span></div>
+        <div class="d-row"><span>差引（対新宿区）</span><span class="v ${net>=0?'delta-good':'delta-bad'}">${net>=0?'+':''}${fmt(net)}人</span></div>`;
+      return;
+    }
+    const n = WIDE_NODES[ref.code];
+    if(n.kind==='nodata'){
+      panel.innerHTML = `<div class="d-title">${n.name}</div>
+        <div style="color:var(--text-secondary);">新宿区資料には個別の数値がありません。他の道府県と合算された「その他44道府県」として、2020年の新宿区への流入合計10,422人・流出合計630人に含まれています（内訳非公開）。</div>`;
+      return;
+    }
+    const net = n.in - n.out;
+    const kindLabel = n.kind==='other' ? '（都県内・主要都市を除く合計）' : '';
+    panel.innerHTML = `<div class="d-title">${n.name}${kindLabel}</div>
+      <div class="d-row"><span>新宿区への流入</span><span class="v">${fmt(n.in)}人</span></div>
+      <div class="d-row"><span>新宿区からの流出</span><span class="v">${fmt(n.out)}人</span></div>
+      <div class="d-row"><span>差引（対新宿区）</span><span class="v ${net>=0?'delta-good':'delta-bad'}">${net>=0?'+':''}${fmt(net)}人</span></div>`;
+  }
+  selectNode({type:'ward', code:SHINJUKU});
+
+  function renderRanking(mode){
+    const title = document.getElementById('rankTitleWide');
+    const list = document.getElementById('rankingListWide');
+    let rows = flowNodes.map(n=>({...n, net:n.in-n.out}));
+    let key, label, colorVar, max;
+    if(mode==='in'){ key='in'; label='新宿区への流入が多い自治体 トップ12'; colorVar='--flow-in'; rows.sort((a,b)=>b.in-a.in); max=maxIn; }
+    else if(mode==='out'){ key='out'; label='新宿区からの流出が多い自治体 トップ12'; colorVar='--flow-out'; rows.sort((a,b)=>b.out-a.out); max=maxOut; }
+    else { key='net'; label='新宿区への流入超過が多い自治体 トップ12'; colorVar='--flow-in'; rows.sort((a,b)=>b.net-a.net); max=Math.max(...rows.map(r=>Math.abs(r.net))); }
+    title.textContent = label;
+    rows = rows.slice(0,12);
+    list.innerHTML = rows.map((r,i)=>{
+      const val = r[key];
+      const barColor = (mode==='both' && val<0) ? 'var(--flow-out)' : `var(${colorVar})`;
+      const widthPct = Math.max(4, Math.abs(val)/max*100).toFixed(1);
+      return `<li class="rank-row" data-type="${r.type}" data-code="${r.code}">
+        <span class="idx">${i+1}</span>
+        <span class="name">${r.name}</span>
+        <span class="rank-bar-track"><span class="rank-bar-fill" style="width:${widthPct}%;background:${barColor};"></span></span>
+        <span class="rank-val">${val>=0&&mode==='both'?'+':''}${fmt(val)}</span>
+      </li>`;
+    }).join('');
+    list.querySelectorAll('.rank-row').forEach(row=>{
+      row.addEventListener('click', ()=>selectNode({type:row.dataset.type, code:row.dataset.code}));
+    });
+  }
+  renderRanking('both');
+})();
+
+// ---- tab switching ----
+document.getElementById('viewTabs').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  document.querySelectorAll('#viewTabs button').forEach(b=>b.classList.toggle('active', b===btn));
+  document.getElementById('detailView').style.display = btn.dataset.view==='detail' ? '' : 'none';
+  document.getElementById('wideView').style.display = btn.dataset.view==='wide' ? '' : 'none';
+});
 </script>
